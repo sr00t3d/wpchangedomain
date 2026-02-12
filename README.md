@@ -1,6 +1,6 @@
 # WP Change Domain 🚀
 
-Readme: [English](README.md)
+Readme: [Português](README.pt-br.md)
 
 <img src="https://github.com/user-attachments/assets/2ccc5fbf-c01e-4919-b662-320d87fddf8d" width="700">
 
