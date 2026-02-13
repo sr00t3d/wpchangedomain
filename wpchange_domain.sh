@@ -1,179 +1,181 @@
 #!/bin/bash
-##################################################################
-# Shell script to change WordPress domain to another domain
-#
-# Features:
-# - Automatically detects WordPress database credentials from wp-config.php
-# - Creates database backup before changes (optional)
-# - Updates domain across multiple WordPress tables
-# - Handles both HTTP and HTTPS URLs
-# - Version checking against remote source
-#
-# Usage: ./change_domain.sh [-s|--skip] [-n|--noversion]
-#
-# Options:
-#   -n, --noversion   Skip version check against remote source
-#   -s, --skip        Skip database backup creation
-#   -h, --help        Display help message
-#
-# Author: Percio Andrade
-# Email: percio@zendev.com.br
-# Version: 1.2
-#
-# Requirements:
-# - MySQL/MariaDB client
-# - WordPress installation with wp-config.php
-# - Database credentials with UPDATE privileges
-##################################################################
+################################################################################
+#                                                                              #
+#   PROJECT: WordPress Domain Changer                                          #
+#   VERSION: 1.3.0                                                             #
+#                                                                              #
+#   AUTHOR:  Percio Andrade                                                    #
+#   CONTACT: percio@evolya.com.br | contato@perciocastelo.com.br               #
+#   WEB:     https://perciocastelo.com.br                                      #
+#                                                                              #
+#   INFO:                                                                      #
+#   Updates WordPress domain in DB, handles backups and auto-detects creds.    #
+#                                                                              #
+################################################################################
 
-function display_help() {
+# --- CONFIGURATION ---
+VERSION='1.3.0'
+UPDATE_URL='https://raw.githubusercontent.com/percioandrade/wpchangedomain/refs/heads/main/wpchange_domain.sh'
+CONFIG_FILE="wp-config.php"
+# ---------------------
+
+# Detect System Language
+SYSTEM_LANG="${LANG:0:2}"
+
+if [[ "$SYSTEM_LANG" == "pt" ]]; then
+    # Portuguese Strings
+    MSG_USAGE="Uso: $0 [-s|--skip] [-n|--noversion]"
+    MSG_OPT_VER="Pular verificação de versão"
+    MSG_OPT_SKIP="Pular backup do banco de dados"
+    MSG_SKIP_VER="[!] Pulando verificação de versão."
+    MSG_UPDATE_AVAIL="[!] Uma nova atualização está disponível. Versão"
+    MSG_UPDATE_LINK="[!] Por favor, atualize em"
+    MSG_START="[!] Iniciando..."
+    MSG_FILE_FOUND="[+] Arquivo wp-config.php encontrado."
+    MSG_ERR_FILE="[!] Arquivo wp-config.php não encontrado, saindo..."
+    MSG_ERR_VALUES="[!] Valores vazios no config, saindo..."
+    MSG_DB_FOUND="[+] Credenciais do banco encontradas:"
+    MSG_CHECK_DOMAIN="[!] Verificando o domínio atual..."
+    MSG_CONNECTING="[!] Tentando estabelecer conexão, aguarde..."
+    MSG_ERR_DOMAIN="[!] Não foi possível determinar o domínio do banco"
+    MSG_CUR_DOMAIN="[+] O domínio atual no banco"
+    MSG_ERR_MYSQL="[!] Falha na conexão MySQL. Verifique as credenciais."
+    MSG_SKIP_BACKUP="[!] Opção --skip usada. Não geraremos backup."
+    MSG_DUMPING="[!] Gerando dump do banco, aguarde..."
+    MSG_DUMP_CREATED="[+] Dump criado em:"
+    MSG_INPUT_DOMAIN="Digite o NOVO domínio (ex: domain.com.br): "
+    MSG_CONFIRM_TXT="[!] Este script vai alterar"
+    MSG_TO="para"
+    MSG_CONFIRM_ASK="Deseja continuar? (y/n): "
+    MSG_INVALID="Resposta inválida."
+    MSG_CONTINUING="[!] Continuando..."
+    MSG_CHANGING="[+] Alterando domínio no banco de dados..."
+    MSG_DONE="[+] Todos os valores foram atualizados com sucesso."
+    MSG_NO_CHANGE="[!] Novo domínio vazio. Nenhuma alteração feita."
+    MSG_EXIT="Saindo..."
+else
+    # English Strings (Default)
+    MSG_USAGE="Usage: $0 [-s|--skip] [-n|--noversion]"
+    MSG_OPT_VER="Skip version check"
+    MSG_OPT_SKIP="Skip database dump creation"
+    MSG_SKIP_VER="[!] Skipping version check."
+    MSG_UPDATE_AVAIL="[!] A new update is available. Version"
+    MSG_UPDATE_LINK="[!] Please update at"
+    MSG_START="[!] Starting..."
+    MSG_FILE_FOUND="[+] File wp-config.php was found."
+    MSG_ERR_FILE="[!] File wp-config.php not found, exiting..."
+    MSG_ERR_VALUES="[!] Empty values in config, exiting..."
+    MSG_DB_FOUND="[+] Database values found:"
+    MSG_CHECK_DOMAIN="[!] Checking the current domain..."
+    MSG_CONNECTING="[!] Trying to establish a connection, please wait..."
+    MSG_ERR_DOMAIN="[!] Unable to determine the database domain for"
+    MSG_CUR_DOMAIN="[+] The actual database domain for"
+    MSG_ERR_MYSQL="[!] Connection to MySQL failed. Check credentials."
+    MSG_SKIP_BACKUP="[!] Skip option used. No backup will be generated."
+    MSG_DUMPING="[!] Dumping database, please wait..."
+    MSG_DUMP_CREATED="[+] Database dump created at:"
+    MSG_INPUT_DOMAIN="Insert the NEW domain (e.g., domain.com.br): "
+    MSG_CONFIRM_TXT="[!] This script will change"
+    MSG_TO="to"
+    MSG_CONFIRM_ASK="Do you want to continue? (y/n): "
+    MSG_INVALID="Invalid response."
+    MSG_CONTINUING="[!] Continuing..."
+    MSG_CHANGING="[+] Changing database domain..."
+    MSG_DONE="[+] All values were updated successfully."
+    MSG_NO_CHANGE="[!] New domain is empty. No changes made."
+    MSG_EXIT="Exiting..."
+fi
+
+# Function to display help
+display_help() {
     cat <<-EOF
-
-    Usage: $0 [-s|--skip] [-n|--noversion]
+    $MSG_USAGE
 
     Options:
-            -n, --noversion   Skip version check      
-            -s, --skip        Skip database dump creation
+        -n, --noversion    $MSG_OPT_VER
+        -s, --skip         $MSG_OPT_SKIP
 EOF
 }
 
-# Check for help option
+# Check for help
 if [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
     display_help
-    exit
+    exit 0
 fi
 
-V='1.2'
-URL='https://raw.githubusercontent.com/percioandrade/wpchangedomain/refs/heads/main/wpchange_domain.sh'
-
-# Skip version check
+# Version Check
+# Checks for flags -n or --noversion in all arguments ($*)
 if [[ " $* " == *" -n "* || " $* " == *" --noversion "* ]]; then
-    echo '[!] We will not check this script version'
+    echo "$MSG_SKIP_VER"
 else
-    # Check script version
-    V_URL=$(GET ${URL}|grep -m1 "V="|cut -d "'" -f2)
-    if [[ ${V} != ${V_URL} ]];then
-        echo '[!] A new update for this script was released. Version '${V_URL}''
-        echo '[!] Please update on update on '${URL}''
+    # Use curl or wget (more robust than GET)
+    if command -v curl &> /dev/null; then
+        V_REMOTE=$(curl -s "$UPDATE_URL" | grep -m1 "VERSION=" | cut -d "'" -f2)
+    elif command -v wget &> /dev/null; then
+        V_REMOTE=$(wget -qO- "$UPDATE_URL" | grep -m1 "VERSION=" | cut -d "'" -f2)
+    else
+        V_REMOTE="$VERSION" # Skip check if no tools
+    fi
+
+    # Clean version string (remove possible extra chars)
+    V_REMOTE=$(echo "$V_REMOTE" | tr -d '\r')
+
+    if [[ "$VERSION" != "$V_REMOTE" && -n "$V_REMOTE" ]]; then
+        echo "$MSG_UPDATE_AVAIL $V_REMOTE"
+        echo "$MSG_UPDATE_LINK $UPDATE_URL"
     fi
 fi
 
-echo '[!] Starting'
+echo "$MSG_START"
 
-# Check if the wp-config.php file exists
-FILE="wp-config.php"
-
-if [[ -f "${FILE}" ]]; then
-    echo '[+] File wp-config.php was found'
+# Check wp-config
+if [[ -f "${CONFIG_FILE}" ]]; then
+    echo "$MSG_FILE_FOUND"
 else
-    echo '[!] File wp-config.php not found, exiting...'
+    echo "$MSG_ERR_FILE"
     exit 1
 fi
 
-# Function to extract values from the config file
+# Function to extract values from config
 get_db_value() {
     local key="$1"
-    grep -i "$key" "${FILE}" | grep -v '#' | awk -F "[=']" '{print $4}'
+    # Improved grep to avoid comments and handle spacing
+    grep -E "define\s*\(\s*['\"]$key['\"]\s*," "$CONFIG_FILE" | awk -F "['\"]" '{print $4}'
 }
 
-# Extract database credentials
-DATABASE=$(get_db_value "DB_NAME")
+# Extract credentials
+DB_NAME=$(get_db_value "DB_NAME")
 DB_USER=$(get_db_value "DB_USER")
 DB_PASS=$(get_db_value "DB_PASSWORD")
 DB_HOST=$(get_db_value "DB_HOST")
 
-# Check if any values are empty
-if [[ -z "${DATABASE}" || -z "${DB_USER}" || -z "${DB_PASS}" || -z "${DB_HOST}" ]]; then
-    echo '[!] - Empty values, exiting...'
+if [[ -z "${DB_NAME}" || -z "${DB_USER}" || -z "${DB_PASS}" || -z "${DB_HOST}" ]]; then
+    echo "$MSG_ERR_VALUES"
     exit 1
 fi
 
-echo '[+] Database values founded'
+echo "$MSG_DB_FOUND"
+echo "------------------------"
+echo "| Database: ${DB_NAME}"
+echo "| User:     ${DB_USER}"
+echo "| Host:     ${DB_HOST}"
+echo "------------------------"
 
-echo $'
-------------------------
-| Database: '${DATABASE}'
-| User: '${DB_USER}'
-| Password: '${DB_PASS}'
-| Host: '${DB_HOST}'
-------------------------
-'
+echo "$MSG_CHECK_DOMAIN"
+echo "$MSG_CONNECTING"
 
-echo '[!] Checking the current domain'
-echo '[!] Trying to establish a connection, please wait....'
-
-PREFIX=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" -e "SELECT table_name FROM information_schema.tables WHERE table_schema = '${DATABASE}' AND table_name LIKE '%options' LIMIT 1;")
-PREFIX="${PREFIX%"_options"}"_
-DOMAIN=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" -e "use ${DATABASE}; SELECT * FROM ${PREFIX}options WHERE option_name = 'home';" | awk '{print $3}')
+# Detect Table Prefix
+# Logic: Find a table ending in _options to guess the prefix
+PREFIX=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "SELECT table_name FROM information_schema.tables WHERE table_schema = '${DB_NAME}' AND table_name LIKE '%options' LIMIT 1;" 2>/dev/null)
 MYSQL_EXIT_CODE=$?
 
-if [[ $MYSQL_EXIT_CODE -eq 0 ]]; then
-    if [[ -z "${DOMAIN}" ]]; then
-        echo '[!] Unable to determine the database '${DATABASE}' domain'
-    else
-        echo '[+] The actual database '${DATABASE}' domain is: '${DOMAIN}' with prefix '${PREFIX}' '
-    fi
-else
-    echo '[!] Connection to MySQL failed. Please check your database credentials'
+if [[ $MYSQL_EXIT_CODE -ne 0 ]]; then
+    echo "$MSG_ERR_MYSQL"
     exit 1
 fi
 
-# Clean domain https and http
-CLEANED_DOMAIN=${DOMAIN#http://}
-CLEANED_DOMAIN=${DOMAIN#https://}
+# Isolate prefix (remove 'options' from the end)
+PREFIX="${PREFIX%options}" 
 
-# Ask if the user wants to skip the database dump
-if [[ " $* " == *" -s "* || " $* " == *" --skip "* ]]; then
-    echo '[!] Skip database used, we will not generate a backup'
-else
-    # Generate a database dump using the determined prefix
-    DUMP_FILE="${PREFIX}db_backup_$(date +%Y%m%d%H%M%S).sql"
-    mysqldump -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DATABASE}" > "${DUMP_FILE}"
-    echo '[!] Dumping database, please wait...'
-    echo '[+] Database dump created on: '$(pwd)/${DUMP_FILE}''
-fi
-
-echo $'[!] Please insert the new domain. Example: domain.com.br )\n'
-
-read -p 'Insert a domain: ' INPUT_DOMAIN
-
-# Clean input domain https and http
-CLEANED_INPUT_DOMAIN=${INPUT_DOMAIN#http://}
-CLEANED_INPUT_DOMAIN=${INPUT_DOMAIN#https://}
-
-echo -e "\n[!] This script will change ${CLEANED_DOMAIN} to ${CLEANED_INPUT_DOMAIN}\n"
-
-read -p "Do you want to continue? (y/n): " RESPONSE
-
-# Convert the response to lowercase for comparison
-RESPONSE=$(echo "${RESPONSE}" | tr '[:upper:]' '[:lower:]')
-
-# Loop until a valid response is given
-while [[ "${RESPONSE}" != "y" && "${RESPONSE}" != "n" ]]; do
-    echo 'Invalid response. Please enter 'y' or 'n'.'
-    read -p 'Do you want to continue? (y/n): ' RESPONSE
-    RESPONSE=$(echo "${RESPONSE}" | tr '[:upper:]' '[:lower:]')
-done
-
-if [[ "${RESPONSE}" == "y" ]]; then
-
-    echo $'\n[!] Continuing...'
-
-    if [[ -n "$CLEANED_INPUT_DOMAIN" ]]; then
-        echo $'[+] Changing database domain...\n'
-
-        mysql -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DATABASE}" -e "
-        UPDATE ${PREFIX}options SET option_value = replace(option_value, '${CLEANED_DOMAIN}', '${CLEANED_INPUT_DOMAIN}') WHERE option_name = 'home' OR option_name = 'siteurl';
-        UPDATE ${PREFIX}posts SET guid = replace(guid, '${CLEANED_DOMAIN}','${CLEANED_INPUT_DOMAIN}');
-        UPDATE ${PREFIX}posts SET post_content = replace(post_content, '${CLEANED_DOMAIN}', '${CLEANED_INPUT_DOMAIN}');
-        UPDATE ${PREFIX}postmeta SET meta_value = replace(meta_value,'${CLEANED_DOMAIN}','${CLEANED_INPUT_DOMAIN}');"
-
-        echo $'\n[+] All values was updated\n'
-    else
-        echo $'\n[!] New domain is empty. No changes made\n'
-    fi
-
-else
-    echo $'\nExiting...\n'
-    exit 1
-fi
+# Get Current Domain
+CURRENT_DOMAIN=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h
