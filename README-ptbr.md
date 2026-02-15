@@ -59,14 +59,14 @@ chmod +x wpchangedomain.sh
 - **Dados Serializados**: Note que substituições diretas via SQL podem corromper dados serializados do PHP (comuns em alguns plugins de construtores de páginas como Elementor). Após o script, recomenda-se revisar o site.
 - **Permissões**: Certifique-se de executar o script com um usuário que tenha permissões de leitura/escrita no banco de dados.
 
-## ⚠️ Disclaimer
+## ⚠️ Aviso Legal
 
 > [!WARNING]
-> Este software é fornecido "tal como está". Certifique-se sempre de ter backup antes de executar. O autor não se responsabiliza por qualquer uso indevido, consequências legais ou impacto nos dados causados ​​por esta ferramenta.
+> Este software é fornecido "como está". Certifique-se sempre de testar primeiro em um ambiente de desenvolvimento. O autor não se responsabiliza por qualquer uso indevido, consequências legais ou impacto em dados causado por esta ferramenta.
 
 ## 📚 Tutorial Detalhado
 
-Para um guia completo, passo a passo, sobre como importar os arquivos gerados para o Thunderbird e solucionar problemas comuns de migração, confira meu artigo completo:
+Para um guia completo, passo a passo, confira meu artigo completo:
 
 👉 [**Change WordPress Domain in Shell**](https://perciocastelo.com.br/blog/change-wordPress-domain-in-shell.html)
 
