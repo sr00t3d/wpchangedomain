@@ -1,6 +1,6 @@
 # WP Change Domain 🚀
 
-Readme: [Português](README.pt-br.md)
+Readme: [Português](README.ptbr.md)
 
 <img src="https://github.com/user-attachments/assets/2ccc5fbf-c01e-4919-b662-320d87fddf8d" width="700">
 
@@ -60,14 +60,14 @@ chmod +x wpchangedomain.sh
 - **Serialized Data**: Note that direct replacements via SQL can corrupt PHP serialized data (common in some page builder plugins like Elementor). After running the script, it is recommended to review the site.
 - **Permissions**: Make sure to run the script with a user that has read/write permissions on the database.
 
-## ⚠️ Disclaimer
+## ⚠️ Legal Notice
 
 > [!WARNING]
-> This software is provided "as is". Always make sure to have a backup before running it. The author is not responsible for any misuse, legal consequences, or data impact caused by this tool.
+> This software is provided "as is". Always make sure to test first in a development environment. The author is not responsible for any misuse, legal consequences, or data impact caused by this tool.
 
 ## 📚 Detailed Tutorial
 
-For a complete, step-by-step guide on how to import the generated files into Thunderbird and troubleshoot common migration issues, check out my full article:
+For a complete, step-by-step guide, check out my full article:
 
 👉 [**Change WordPress Domain in Shell**](https://perciocastelo.com.br/blog/change-wordPress-domain-in-shell.html)
 
