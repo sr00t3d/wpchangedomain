@@ -2,10 +2,10 @@
 
 Readme: [Português](README-ptbr.md)
 
-<img src="https://github.com/user-attachments/assets/2ccc5fbf-c01e-4919-b662-320d87fddf8d" width="700">
-
-![License](https://img.shields.io/github/license/sr00t3d/bindfilter)
+![License](https://img.shields.io/github/license/sr00t3d/wpchangedomain)
 ![Shell Script](https://img.shields.io/badge/shell-script-green)
+
+<img src="wpchangedomain-cover.webp" width="700">
 
 This Shell Bash script was developed to automate the process of changing the domain in `WordPress` installations. It performs search and replace directly in the MySQL/MariaDB database, ensuring that all references to the old domain are updated to the new one.
 
