@@ -1,6 +1,6 @@
 # WP Change Domain 🚀
 
-Readme: [English](README.md)
+Readme: [EN](README.md)
 
 ![License](https://img.shields.io/github/license/sr00t3d/wpchangedomain)
 ![Shell Script](https://img.shields.io/badge/shell-script-green)
@@ -31,17 +31,56 @@ Antes de utilizar o script, certifique-se de que o ambiente atenda aos seguintes
 
 ## 🚀 Instalação e Uso
 
-1. Clone o repositorio:
+1. **Baixe o arquivo no servidor:**
 
 ```bash
-git clone https://github.com/sr00t3d/wpchangedomain
-cd wpchangedomain
-chmod +x wpchangedomain.sh
+curl -O https://raw.githubusercontent.com/sr00t3d/wpchangedomain/refs/heads/main/wpchange_domain.sh
 ```
-2. Execute o script e siga as instruções na tela:
+
+2. **Dê permissão de execução:**
+
+```bash
+chmod +x wpchange_domain.sh
+```
+
+3. **Execute o script:**
 
 ```bash
 ./wpchange_domain.sh
+```
+
+```bash
+./wpchange_domain.sh
+
+Example:
+
+```bash
+./wpchange_domain.sh 
+[!] Starting...
+[+] File wp-config.php was found.
+[+] Database values found:
+------------------------
+| Database: sql_wpdomain_com
+| User:     sql_wpdomain_com
+| Host:     localhost
+------------------------
+[!] Checking the current domain...
+[!] Trying to establish a connection, please wait...
+[+] The actual database domain for: http://wpdomain.com (Prefix: wp_8b7fba_)
+[!] Dumping database, please wait...
+[+] Database dump created at: /www/wwwroot/wpdomain.com/backup_sql_wpdomain_com_20260228_001024.sql
+
+Insert the NEW domain (e.g., domain.com.br): wpnewdomain.com
+
+[!] This script will change wpdomain.com to wpnewdomain.com
+Do you want to continue? (y/n): y
+
+[!] Continuing...
+[+] Changing database domain...
+
+mysql: [Warning] Using a password on the command line interface can be insecure.
+
+[+] All values were updated successfully.
 ```
 
 ## Utilização
@@ -49,9 +88,10 @@ chmod +x wpchangedomain.sh
 ```bash
 ./wpchange_domain.sh [-s|--skip] [-n|--noversion]
 ```
-- `--noversion`   Ignorar a verificação de versão na fonte remota
-- `--skip`        Ignorar a criação de backup do banco de dados
-- `--help`        Exibir mensagem de ajuda
+
+- `--noversion` Ignorar a verificação de versão na fonte remota.
+- `--skip`      Ignorar a criação de backup do banco de dados.
+- `--help`      Exibir mensagem de ajuda.
 
 ## ⚠️ Avisos Importantes
 
@@ -62,13 +102,13 @@ chmod +x wpchangedomain.sh
 ## ⚠️ Aviso Legal
 
 > [!WARNING]
-> Este software é fornecido "como está". Certifique-se sempre de testar primeiro em um ambiente de desenvolvimento. O autor não se responsabiliza por qualquer uso indevido, consequências legais ou impacto em dados causado por esta ferramenta.
+> Este software é fornecido "tal como está". Certifique-se sempre de ter permissão explícita antes de executar. O autor não se responsabiliza por qualquer uso indevido, consequências legais ou impacto nos dados causados ​​por esta ferramenta.
 
-## 📚 Tutorial Detalhado
+## 📚 Detailed Tutorial
 
 Para um guia completo, passo a passo, confira meu artigo completo:
 
-👉 [**Change WordPress Domain in Shell**](https://perciocastelo.com.br/blog/change-wordPress-domain-in-shell.html)
+👉 [**Change WordPress Domain in Shell**](https://perciocastelo.com.br/blog/change-wordpress-domain-in-shell.html)
 
 ## Licença 📄
 

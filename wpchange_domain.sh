@@ -1,23 +1,21 @@
-#!/bin/bash
-################################################################################
-#                                                                              #
-#   PROJECT: WordPress Domain Changer                                          #
-#   VERSION: 1.3.0                                                             #
-#                                                                              #
-#   AUTHOR:  Percio Andrade                                                    #
-#   CONTACT: percio@evolya.com.br | contato@perciocastelo.com.br               #
-#   WEB:     https://perciocastelo.com.br                                      #
-#                                                                              #
-#   INFO:                                                                      #
-#   Updates WordPress domain in DB, handles backups and auto-detects creds.    #
-#                                                                              #
-################################################################################
+#!/usr/bin/env bash
+# ╔═══════════════════════════════════════════════════════════════════════════╗
+# ║                                                                           ║
+# ║   WordPress Change Domain v1.3.1                                          ║
+# ║                                                                           ║
+# ╠═══════════════════════════════════════════════════════════════════════════╣
+# ║   Autor:   Percio Castelo                                                 ║
+# ║   Contato: percio@evolya.com.br | contato@perciocastelo.com.br            ║
+# ║   Web:     https://perciocastelo.com.br                                   ║
+# ║                                                                           ║
+# ║   Função:  Updates WP domains in the database,handles backups and         ║
+# ║            detects prefixes.                                              ║
+# ╚═══════════════════════════════════════════════════════════════════════════╝
 
 # --- CONFIGURATION ---
-VERSION='1.3.0'
-UPDATE_URL='https://raw.githubusercontent.com/percioandrade/wpchangedomain/refs/heads/main/wpchange_domain.sh'
+VERSION='1.3.1'
+UPDATE_URL='https://raw.githubusercontent.com/sr00t3d/wpchangedomain/refs/heads/main/wpchange_domain.sh'
 CONFIG_FILE="wp-config.php"
-# ---------------------
 
 # Detect System Language
 SYSTEM_LANG="${LANG:0:2}"
@@ -37,7 +35,7 @@ if [[ "$SYSTEM_LANG" == "pt" ]]; then
     MSG_DB_FOUND="[+] Credenciais do banco encontradas:"
     MSG_CHECK_DOMAIN="[!] Verificando o domínio atual..."
     MSG_CONNECTING="[!] Tentando estabelecer conexão, aguarde..."
-    MSG_ERR_DOMAIN="[!] Não foi possível determinar o domínio do banco"
+    MSG_ERR_DOMAIN="[!] Não foi possível determinar o domínio no banco"
     MSG_CUR_DOMAIN="[+] O domínio atual no banco"
     MSG_ERR_MYSQL="[!] Falha na conexão MySQL. Verifique as credenciais."
     MSG_SKIP_BACKUP="[!] Opção --skip usada. Não geraremos backup."
@@ -86,40 +84,31 @@ else
     MSG_EXIT="Exiting..."
 fi
 
-# Function to display help
 display_help() {
     cat <<-EOF
-    $MSG_USAGE
+$MSG_USAGE
 
-    Options:
-        -n, --noversion    $MSG_OPT_VER
-        -s, --skip         $MSG_OPT_SKIP
+Options:
+-n, --noversion   $MSG_OPT_VER
+-s, --skip        $MSG_OPT_SKIP
 EOF
 }
 
-# Check for help
+# --- ARGUMENT CHECK ---
 if [[ $1 == "-h" ]] || [[ $1 == "--help" ]]; then
     display_help
     exit 0
 fi
 
-# Version Check
-# Checks for flags -n or --noversion in all arguments ($*)
+# --- VERSION CHECK ---
 if [[ " $* " == *" -n "* || " $* " == *" --noversion "* ]]; then
     echo "$MSG_SKIP_VER"
 else
-    # Use curl or wget (more robust than GET)
     if command -v curl &> /dev/null; then
-        V_REMOTE=$(curl -s "$UPDATE_URL" | grep -m1 "VERSION=" | cut -d "'" -f2)
+        V_REMOTE=$(curl -s "$UPDATE_URL" | grep -m1 "VERSION=" | cut -d "'" -f2 | tr -d '\r')
     elif command -v wget &> /dev/null; then
-        V_REMOTE=$(wget -qO- "$UPDATE_URL" | grep -m1 "VERSION=" | cut -d "'" -f2)
-    else
-        V_REMOTE="$VERSION" # Skip check if no tools
+        V_REMOTE=$(wget -qO- "$UPDATE_URL" | grep -m1 "VERSION=" | cut -d "'" -f2 | tr -d '\r')
     fi
-
-    # Clean version string (remove possible extra chars)
-    V_REMOTE=$(echo "$V_REMOTE" | tr -d '\r')
-
     if [[ "$VERSION" != "$V_REMOTE" && -n "$V_REMOTE" ]]; then
         echo "$MSG_UPDATE_AVAIL $V_REMOTE"
         echo "$MSG_UPDATE_LINK $UPDATE_URL"
@@ -128,7 +117,7 @@ fi
 
 echo "$MSG_START"
 
-# Check wp-config
+# --- CONFIG VALIDATION ---
 if [[ -f "${CONFIG_FILE}" ]]; then
     echo "$MSG_FILE_FOUND"
 else
@@ -136,14 +125,11 @@ else
     exit 1
 fi
 
-# Function to extract values from config
 get_db_value() {
     local key="$1"
-    # Improved grep to avoid comments and handle spacing
     grep -E "define\s*\(\s*['\"]$key['\"]\s*," "$CONFIG_FILE" | awk -F "['\"]" '{print $4}'
 }
 
-# Extract credentials
 DB_NAME=$(get_db_value "DB_NAME")
 DB_USER=$(get_db_value "DB_USER")
 DB_PASS=$(get_db_value "DB_PASSWORD")
@@ -161,12 +147,12 @@ echo "| User:     ${DB_USER}"
 echo "| Host:     ${DB_HOST}"
 echo "------------------------"
 
+# --- MYSQL CONNECTION & DOMAIN DETECTION ---
 echo "$MSG_CHECK_DOMAIN"
 echo "$MSG_CONNECTING"
 
 # Detect Table Prefix
-# Logic: Find a table ending in _options to guess the prefix
-PREFIX=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "SELECT table_name FROM information_schema.tables WHERE table_schema = '${DB_NAME}' AND table_name LIKE '%options' LIMIT 1;" 2>/dev/null)
+RAW_TABLE=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "SHOW TABLES LIKE '%options';" 2>/dev/null | head -n 1)
 MYSQL_EXIT_CODE=$?
 
 if [[ $MYSQL_EXIT_CODE -ne 0 ]]; then
@@ -174,8 +160,59 @@ if [[ $MYSQL_EXIT_CODE -ne 0 ]]; then
     exit 1
 fi
 
-# Isolate prefix (remove 'options' from the end)
-PREFIX="${PREFIX%options}" 
+PREFIX="${RAW_TABLE%options}"
 
 # Get Current Domain
-CURRENT_DOMAIN=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h
+CURRENT_URL=$(mysql -N -s -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" -e "SELECT option_value FROM ${PREFIX}options WHERE option_name = 'siteurl' LIMIT 1;" 2>/dev/null)
+
+if [[ -z "${CURRENT_URL}" ]]; then
+    echo "$MSG_ERR_DOMAIN"
+    exit 1
+fi
+
+# Clean protocols for replacement logic
+CLEAN_DOMAIN=$(echo "${CURRENT_URL}" | sed -e 's|^[^/]*//||' -e 's|/$||')
+echo "$MSG_CUR_DOMAIN: ${CURRENT_URL} (Prefix: ${PREFIX})"
+
+# --- BACKUP LOGIC ---
+if [[ " $* " == *" -s "* || " $* " == *" --skip "* ]]; then
+    echo "$MSG_SKIP_BACKUP"
+else
+    DUMP_FILE="backup_${DB_NAME}_$(date +%Y%m%d_%H%M%S).sql"
+    echo "$MSG_DUMPING"
+    mysqldump -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" > "${DUMP_FILE}"
+    echo "$MSG_DUMP_CREATED $(pwd)/${DUMP_FILE}"
+fi
+
+# --- INPUT & CONFIRMATION ---
+echo ""
+read -p "$MSG_INPUT_DOMAIN" INPUT_DOMAIN
+CLEAN_INPUT=$(echo "${INPUT_DOMAIN}" | sed -e 's|^[^/]*//||' -e 's|/$||')
+
+if [[ -z "$CLEAN_INPUT" ]]; then
+    echo "$MSG_NO_CHANGE"
+    exit 1
+fi
+
+echo -e "\n$MSG_CONFIRM_TXT $CLEAN_DOMAIN $MSG_TO $CLEAN_INPUT"
+read -p "$MSG_CONFIRM_ASK" RESPONSE
+RESPONSE=$(echo "${RESPONSE}" | tr '[:upper:]' '[:lower:]')
+
+if [[ "${RESPONSE}" != "y" ]]; then
+    echo "$MSG_EXIT"
+    exit 1
+fi
+
+# --- EXECUTION ---
+echo -e "\n$MSG_CONTINUING"
+echo -e "$MSG_CHANGING\n"
+
+# Performs updates to the database using the detected prefix
+mysql -u "${DB_USER}" -p"${DB_PASS}" -h "${DB_HOST}" "${DB_NAME}" <<EOF
+UPDATE ${PREFIX}options SET option_value = REPLACE(option_value, '${CLEAN_DOMAIN}', '${CLEAN_INPUT}') WHERE option_name IN ('home', 'siteurl');
+UPDATE ${PREFIX}posts SET guid = REPLACE(guid, '${CLEAN_DOMAIN}', '${CLEAN_INPUT}');
+UPDATE ${PREFIX}posts SET post_content = REPLACE(post_content, '${CLEAN_DOMAIN}', '${CLEAN_INPUT}');
+UPDATE ${PREFIX}postmeta SET meta_value = REPLACE(meta_value, '${CLEAN_DOMAIN}', '${CLEAN_INPUT}');
+EOF
+
+echo -e "\n$MSG_DONE\n"
